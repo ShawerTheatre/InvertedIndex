@@ -4,52 +4,11 @@ using System.Diagnostics;
 
 namespace InvertedIndexApp;
 
-public class IndexService : IDisposable
+public class IndexService
 {
-    private readonly ReaderWriterLockSlim _lock = new();
-    private bool _isIndexed = false;
+    public bool IsIndexed { get; private set; }
 
     private readonly ConcurrentDictionary<string, ImmutableHashSet<string>> _index = new();
-
-    public bool IsIndexed
-    {
-        get
-        {
-            _lock.EnterReadLock();
-            try
-            {
-                return _isIndexed;
-            }
-            finally
-            {
-                _lock.ExitReadLock();
-            }
-        }
-    }
-    
-    private void SetIndexed()
-    {
-        _lock.EnterUpgradeableReadLock();
-        try
-        {
-            if (!_isIndexed)
-            {
-                _lock.EnterWriteLock();
-                try
-                {
-                    _isIndexed = true;
-                }
-                finally
-                {
-                    _lock.ExitWriteLock();
-                }
-            }
-        }
-        finally
-        {
-            _lock.ExitUpgradeableReadLock();
-        }
-    }
 
     public string[]? Query(string word)
     {
@@ -90,8 +49,13 @@ public class IndexService : IDisposable
         
         sw.Stop();
 
-        SetIndexed();
+        IsIndexed = true;
         return sw.ElapsedMilliseconds;
+    }
+    
+    private void IndexSingleThreaded(string[] files)
+    {
+        IndexFiles(files);
     }
 
     private void IndexMultiThreaded(string[] files, int threadsCount)
@@ -121,11 +85,6 @@ public class IndexService : IDisposable
         }
     }
 
-    private void IndexSingleThreaded(string[] files)
-    {
-        IndexFiles(files);
-    }
-    
     private void IndexFiles(Span<string> filePaths)
     {
         foreach (var filePath in filePaths)
@@ -144,19 +103,15 @@ public class IndexService : IDisposable
         foreach (var word in words)
         {
             _index.AddOrUpdate(
-            word,
-            (_) => ImmutableHashSet.Create<string>(resultPath),
-            (_, set) => set.Add(resultPath));
+                word,
+                (_) => ImmutableHashSet.Create<string>(resultPath),
+                (_, set) => set.Add(resultPath)
+            );
         }
     }
 
     private string NormalizeWord(string word)
     {
         return word.Trim().ToLowerInvariant();
-    }
-    
-    public void Dispose()
-    {
-        _lock.Dispose();
     }
 }
