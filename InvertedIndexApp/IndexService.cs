@@ -72,7 +72,7 @@ public class IndexService : IDisposable
         if (threadsCount <= 0) throw new ArgumentException("ThreadsCount must be greater than 0", nameof(threadsCount));
         if (threadsCount > Environment.ProcessorCount * 8) throw new ArgumentException("ThreadsCount is too large", nameof(threadsCount));
 
-        var files = Directory.GetFiles("Input");
+        var files = Directory.GetFiles("Input", "*.*", SearchOption.AllDirectories);
 
         _index.Clear();
         
@@ -139,13 +139,14 @@ public class IndexService : IDisposable
         var words = File.ReadLines(filePath)
             .SelectMany(line => line.Split(' '))
             .Select(word => word.Trim().ToLowerInvariant());
+        var resultPath = string.Join(Path.DirectorySeparatorChar, filePath.Split(Path.DirectorySeparatorChar).Skip(1));
 
         foreach (var word in words)
         {
             _index.AddOrUpdate(
             word,
-            ImmutableHashSet.Create<string>,
-            (newWord, set) => set.Add(newWord));
+            (_) => ImmutableHashSet.Create<string>(resultPath),
+            (_, set) => set.Add(resultPath));
         }
     }
 
