@@ -58,7 +58,7 @@ public class IndexService : IDisposable
             throw new Exception("Files were not indexed yet");
         }
         
-        var normalizedWord = word.Trim().ToLowerInvariant();
+        var normalizedWord = NormalizeWord(word);
         if (_index.TryGetValue(normalizedWord, out var result))
         {
             return result.ToArray();
@@ -138,7 +138,7 @@ public class IndexService : IDisposable
     {
         var words = File.ReadLines(filePath)
             .SelectMany(line => line.Split(' '))
-            .Select(word => word.Trim().ToLowerInvariant());
+            .Select(NormalizeWord);
         var resultPath = string.Join(Path.DirectorySeparatorChar, filePath.Split(Path.DirectorySeparatorChar).Skip(1));
 
         foreach (var word in words)
@@ -150,6 +150,11 @@ public class IndexService : IDisposable
         }
     }
 
+    private string NormalizeWord(string word)
+    {
+        return word.Trim().ToLowerInvariant();
+    }
+    
     public void Dispose()
     {
         _lock.Dispose();
